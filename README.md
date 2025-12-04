@@ -1,6 +1,6 @@
 # ARM-LEGv8-CPU
 This is a Verilog implementation of an ARMv8 CPU with the LEGv8 subset of instructions.\
-Implementation found in `cpu5arm.v`, test bench found in `cpu5armtb.v`.
+Implementation found in `cpu5arm.v`. Test bench found in `cpu5armtb.v`.
 
 ## CPU Schematic
 
