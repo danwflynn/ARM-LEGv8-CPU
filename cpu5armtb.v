@@ -1,6 +1,6 @@
 `timescale 1ns/10ps
 
-// Daniel Flynn, Defne Ulusoy
+// Testbench for arm cpu
 
 module cpu5armtb();
 

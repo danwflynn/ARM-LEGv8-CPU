@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-// Daniel Flynn, Defne Ulusoy
+// Main cpu
 
 module cpu5arm(ibus, clk, reset, daddrbus, iaddrbus, databus);
   	input [31:0] ibus;
