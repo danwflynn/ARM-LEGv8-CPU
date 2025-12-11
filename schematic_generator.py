@@ -16,7 +16,11 @@ class Output(Node):
   inputs: List[Tuple[str, "Node"]] = field(default_factory=list) # edge name + source
 
 @dataclass
-class Block(Input, Output):
+class Inout(Input, Output):
+  pass
+
+@dataclass
+class Block(Inout):
   clocked: bool = False
 
 class Schematic:
@@ -51,10 +55,21 @@ def strip_verilog(lines):
           i += 2
         else:
           i += 1
-    stripped_line = stripped_line.rstrip()
-    stripped_line = stripped_line.lstrip()
-    if stripped_line.strip():
-      result.append(stripped_line)
+    stripped_line = stripped_line.strip()
+    if not stripped_line:
+        continue
+    parts = stripped_line.split(';')
+    for idx, part in enumerate(parts):
+      part = part.strip()
+      if not part:
+        continue
+      if idx < len(parts) - 1:
+        result.append(part + ';')
+      else:
+        if stripped_line.endswith(';'):
+          result.append(part + ';')
+        else:
+          result.append(part)
   return result
 
 def generate_schematic(module_name):
