@@ -1,6 +1,8 @@
-# ARM-LEGv8-CPU
+# ARM LEGv8 CPU
 This is a Verilog implementation of an ARMv8 CPU with the LEGv8 subset of instructions.\
-Implementation found in `cpu5arm.v`. Test bench found in `cpu5armtb.v`.
+Implementation found in `cpu5arm.v`. Test bench found in `cpu5armtb.v`.\
+The CPU is pipelined through 5 stages (Fetch, Decode, Execute, Memory, Write-Back). Xilinx Vivado 2022.1 was used for simulation and testing.\
+Currently working on a script to auto generate schematics.
 
 ## CPU Schematic
 
