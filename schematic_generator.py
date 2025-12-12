@@ -13,7 +13,7 @@ class Input(Node):
 
 @dataclass
 class Output(Node):
-  inputs: List[Tuple[str, "Input"]] = field(default_factory=list) # edge name + source
+  pass
 
 @dataclass
 class Inout(Input, Output):
@@ -27,12 +27,13 @@ class Schematic:
   def __init__(self, name: str):
     self.name: str = name
     self.inputs: List[Input] = []
-    self.outputs: List[Output] = []
   
   def connect(input: Input, output: Output, wire: str):
     input.outputs.append((wire, output))
-    output.inputs.append((wire, input))
-  
+
+  def add_input(self, input: Input):
+    self.inputs.append(input)
+
   def draw_schematic():
     pass
 
