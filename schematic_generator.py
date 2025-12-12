@@ -76,8 +76,17 @@ def strip_verilog(lines):
           result.append(part)
   return result
 
+def get_subset(module_name, lines):
+  result = []
+  inside_module = False
+  for line in lines:
+    if "module " in line and module_name in line: inside_module = True
+    if inside_module: result.append(line)
+    if "endmodule" in line and inside_module: return result
+
 def generate_schematic(module_name):
   schematic = Schematic(module_name)
+  all_lines = []
 
   try:
     with open("files.txt", "r") as f:
@@ -89,17 +98,16 @@ def generate_schematic(module_name):
     try:
       with open(vfile, "r") as f:
         cleaned_lines = strip_verilog(f)
-        # Do BFS to find everything
         for line in cleaned_lines:
-          print(line)
+          all_lines.append(line)
     except FileNotFoundError:
       print(f"Error: listed file '{vfile}' does not exist.")
       sys.exit(1)
+  
+  for line in get_subset(module_name, all_lines):
+    print(line)
 
 
 if __name__ == '__main__':
-  try:
-    top_module_name = sys.argv[1]
-    generate_schematic(top_module_name)
-  except Exception:
-    print("Invalid arguments.")
+  top_module_name = sys.argv[1]
+  generate_schematic(top_module_name)
