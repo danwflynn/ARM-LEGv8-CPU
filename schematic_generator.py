@@ -78,20 +78,27 @@ def strip_verilog(lines):
   return result
 
 
-def get_subset(module_name, lines):
+def get_submodule(module_name, lines):
   result = []
   inside_module = False
   for line in lines:
-    if "module " in line and (module_name + " " in line or module_name + "(" in line): inside_module = True
+    # if "module " in line and (module_name + " " in line or module_name + "(" in line): inside_module = True
+    if "module " in line:
+      name = ""
+      for char in line[7:]:
+        if char == " ": continue
+        elif char == "(": break
+        else: name += char
+      if name == module_name: inside_module = True
     if inside_module: result.append(line)
     if "endmodule" in line and inside_module: return result
   raise ValueError(f"{module_name} module not found or not correctly instantiated.\nmodule {module_name}( must be on 1 line.")
 
 
-def get_leafs_of_keyword(subset, keyword):
+def get_leafs_of_keyword(submodule, keyword):
   input_names = []
   input = ""
-  for line in subset:
+  for line in submodule:
     if line.startswith(keyword):
       outside_brackets = True
       for char in line[len(keyword):]:
@@ -103,6 +110,10 @@ def get_leafs_of_keyword(subset, keyword):
           input_names.append(input)
           input = ""
   return input_names
+
+
+def bfs_from_node(all_lines, submodule, node: Input):
+  print(node.name)
 
 
 def generate_schematic(module_name):
@@ -125,8 +136,11 @@ def generate_schematic(module_name):
       print(f"Error: listed file '{vfile}' does not exist.")
       sys.exit(1)
   
-  for i in get_leafs_of_keyword(get_subset(module_name, all_lines), "input"): print(i)
-  for i in get_leafs_of_keyword(get_subset(module_name, all_lines), "inout"): print(i)
+  # get the inputs
+  for leaf in get_leafs_of_keyword(get_submodule(module_name, all_lines), "input"): schematic.add_input(Input(name=leaf))
+  for leaf in get_leafs_of_keyword(get_submodule(module_name, all_lines), "inout"): schematic.add_input(Inout(name=leaf))
+  # search from all inputs
+  for input in schematic.inputs: bfs_from_node(all_lines, get_submodule(module_name, all_lines), input)
 
 
 if __name__ == '__main__':
