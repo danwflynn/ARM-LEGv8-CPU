@@ -82,7 +82,6 @@ def get_submodule(module_name, lines):
   result = []
   inside_module = False
   for line in lines:
-    # if "module " in line and (module_name + " " in line or module_name + "(" in line): inside_module = True
     if "module " in line:
       name = ""
       for char in line[7:]:
