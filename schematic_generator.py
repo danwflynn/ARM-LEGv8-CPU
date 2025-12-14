@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List
 
 
 @dataclass
@@ -9,7 +9,7 @@ class Node:
 
 @dataclass
 class Input(Node):
-  outputs: List[Tuple[str, "Output"]] = field(default_factory=list) # edge name + destination
+  outputs: List["Output"] = field(default_factory=list)
 
 @dataclass
 class Output(Node):
