@@ -111,8 +111,29 @@ def get_leafs_of_keyword(submodule, keyword):
   return input_names
 
 
+def tokenize_line(line):
+  tokens = []
+  current_token = ""
+  for char in line:
+    if current_token == "" and char == " ": continue
+    elif char != " " and char != "," and char != ":" and char != "?" and char != ";" and char != "&" and char != "|" and char != "+" and char != "-" and char != "*" and char != "=":
+      current_token += char
+    else:
+      if current_token != "": tokens.append(current_token)
+      current_token = ""
+      if char != " ": tokens.append(char)
+  return tokens
+
+
 def bfs_from_node(all_lines, submodule, node: Input):
-  print(node.name)
+  move_down = True
+  i = 0
+  while i < len(submodule):
+    if "(" + node.name + ")" in submodule[i].replace(" ", "") and "." in submodule[i] and node.name != "clk":
+      print(submodule[i])
+    elif node.name in tokenize_line(submodule[i])[3:] and (tokenize_line(submodule[i])[2] == "="):
+      print(submodule[i])
+    i += 1
 
 
 def generate_schematic(module_name):
