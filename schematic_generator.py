@@ -138,8 +138,15 @@ def bfs_from_node(all_lines, submodule, node: Input):
       move_down = False
       branch_i = i
     if not move_down and "." not in tokens[0] and "(" not in tokens[0]:
-      clk = "clk" in get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
-      node.outputs.append(Block(name=tokens[0], clocked=clk))
+      submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
+      clk = "clk" in submod_inputs
+      port_name = ""
+      reading_chars = False
+      for char in submodule[branch_i]:
+        if char == ".": reading_chars = True
+        elif reading_chars and char != "(": port_name += char
+        elif reading_chars: break
+      if port_name in submod_inputs: node.outputs.append(Block(name=tokens[0], clocked=clk))
       move_down = True
       i = branch_i
     elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": node.outputs.append(Wire(name=tokens[1]))
