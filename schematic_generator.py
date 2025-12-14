@@ -20,6 +20,10 @@ class Inout(Input, Output):
   pass
 
 @dataclass
+class Wire(Input, Output):
+  pass
+
+@dataclass
 class Block(Inout):
   clocked: bool = False
 
@@ -82,7 +86,7 @@ def get_submodule(module_name, lines):
   result = []
   inside_module = False
   for line in lines:
-    if "module " in line:
+    if line.startswith("module "):
       name = ""
       for char in line[7:]:
         if char == " ": continue
@@ -129,11 +133,25 @@ def bfs_from_node(all_lines, submodule, node: Input):
   move_down = True
   i = 0
   while i < len(submodule):
-    if "(" + node.name + ")" in submodule[i].replace(" ", "") and "." in submodule[i] and node.name != "clk":
-      print(submodule[i])
-    elif node.name in tokenize_line(submodule[i])[3:] and (tokenize_line(submodule[i])[2] == "="):
-      print(submodule[i])
-    i += 1
+    tokens = tokenize_line(submodule[i])
+    if "(" + node.name + ")" in submodule[i].replace(" ", "") and "." in submodule[i] and node.name != "clk" and move_down:
+      move_down = False
+      branch_i = i
+    if not move_down and "." not in tokens[0] and "(" not in tokens[0]:
+      clk = "clk" in get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
+      node.outputs.append(Block(name=tokens[0], clocked=clk))
+      move_down = True
+      i = branch_i
+    elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": node.outputs.append(Wire(name=tokens[1]))
+    elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "assign":
+      if tokens[1] in get_leafs_of_keyword(submodule, "wire"): node.outputs.append(Wire(name=tokens[1]))
+      elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): node.outputs.append(Inout(name=tokens[1]))
+      elif tokens[1] in get_leafs_of_keyword(submodule, "output"): node.outputs.append(Output(name=tokens[1]))
+    if move_down: i += 1
+    else: i -= 1
+  
+  for dest in node.outputs:
+    print(node.name, dest)
 
 
 def generate_schematic(module_name):
@@ -156,11 +174,13 @@ def generate_schematic(module_name):
       print(f"Error: listed file '{vfile}' does not exist.")
       sys.exit(1)
   
+  top_module = get_submodule(module_name, all_lines)
+  
   # get the inputs
-  for leaf in get_leafs_of_keyword(get_submodule(module_name, all_lines), "input"): schematic.add_input(Input(name=leaf))
-  for leaf in get_leafs_of_keyword(get_submodule(module_name, all_lines), "inout"): schematic.add_input(Inout(name=leaf))
+  for leaf in get_leafs_of_keyword(top_module, "input"): schematic.add_input(Input(name=leaf))
+  for leaf in get_leafs_of_keyword(top_module, "inout"): schematic.add_input(Inout(name=leaf))
   # search from all inputs
-  for input in schematic.inputs: bfs_from_node(all_lines, get_submodule(module_name, all_lines), input)
+  for input in schematic.inputs: bfs_from_node(all_lines, top_module, input)
 
 
 if __name__ == '__main__':
