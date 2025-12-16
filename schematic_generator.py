@@ -31,12 +31,15 @@ class Schematic:
   def __init__(self, name: str):
     self.name: str = name
     self.inputs: List[Input] = []
+    self.nodes: List[Node] = []
   
-  def connect(input: Input, output: Output, wire: str):
-    input.outputs.append((wire, output))
+  def connect(self, input: Input, output: Output):
+    input.outputs.append(output)
+    self.nodes.append(output)
 
   def add_input(self, input: Input):
     self.inputs.append(input)
+    self.nodes.append(input)
 
   def draw_schematic():
     pass
@@ -129,33 +132,36 @@ def tokenize_line(line):
   return tokens
 
 
-def bfs_from_node(all_lines, submodule, node: Input):
-  move_down = True
-  i = 0
-  while i < len(submodule):
-    tokens = tokenize_line(submodule[i])
-    if "(" + node.name + ")" in submodule[i].replace(" ", "") and "." in submodule[i] and node.name != "clk" and move_down:
-      move_down = False
-      branch_i = i
-    if not move_down and "." not in tokens[0] and "(" not in tokens[0]:
-      submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
-      clk = "clk" in submod_inputs
-      port_name = ""
-      reading_chars = False
-      for char in submodule[branch_i]:
-        if char == ".": reading_chars = True
-        elif reading_chars and char != "(": port_name += char
-        elif reading_chars: break
-      if port_name in submod_inputs: node.outputs.append(Block(name=tokens[0], clocked=clk))
-      move_down = True
-      i = branch_i
-    elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": node.outputs.append(Wire(name=tokens[1]))
-    elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "assign":
-      if tokens[1] in get_leafs_of_keyword(submodule, "wire"): node.outputs.append(Wire(name=tokens[1]))
-      elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): node.outputs.append(Inout(name=tokens[1]))
-      elif tokens[1] in get_leafs_of_keyword(submodule, "output"): node.outputs.append(Output(name=tokens[1]))
-    if move_down: i += 1
-    else: i -= 1
+def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
+  if not isinstance(node, Block):
+    move_down = True
+    i = 0
+    while i < len(submodule):
+      tokens = tokenize_line(submodule[i])
+      if "(" + node.name + ")" in submodule[i].replace(" ", "") and "." in submodule[i] and node.name != "clk" and move_down:
+        move_down = False
+        branch_i = i
+      if not move_down and "." not in tokens[0] and "(" not in tokens[0]:
+        submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
+        clk = "clk" in submod_inputs
+        port_name = ""
+        reading_chars = False
+        for char in submodule[branch_i]:
+          if char == ".": reading_chars = True
+          elif reading_chars and char != "(": port_name += char
+          elif reading_chars: break
+        if port_name in submod_inputs: schematic.connect(node, Block(name=tokens[0], clocked=clk))
+        move_down = True
+        i = branch_i
+      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": schematic.connect(node, Wire(name=tokens[1]))
+      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "assign":
+        if tokens[1] in get_leafs_of_keyword(submodule, "wire"): schematic.connect(node, Wire(name=tokens[1]))
+        elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): schematic.connect(node, Inout(name=tokens[1]))
+        elif tokens[1] in get_leafs_of_keyword(submodule, "output"): schematic.connect(node, Output(name=tokens[1]))
+      if move_down: i += 1
+      else: i -= 1
+  else:
+    pass
   
   for dest in node.outputs:
     print(node.name, dest)
@@ -187,7 +193,7 @@ def generate_schematic(module_name):
   for leaf in get_leafs_of_keyword(top_module, "input"): schematic.add_input(Input(name=leaf))
   for leaf in get_leafs_of_keyword(top_module, "inout"): schematic.add_input(Inout(name=leaf))
   # search from all inputs
-  for input in schematic.inputs: bfs_from_node(all_lines, top_module, input)
+  for input in schematic.inputs: bfs_from_node(all_lines, top_module, input, schematic)
 
 
 if __name__ == '__main__':
