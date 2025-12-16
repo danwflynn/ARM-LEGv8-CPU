@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
 
 @dataclass
@@ -31,15 +31,18 @@ class Schematic:
   def __init__(self, name: str):
     self.name: str = name
     self.inputs: List[Input] = []
-    self.nodes: List[Node] = []
+    self.nodes: Dict[str, Node] = {}
   
-  def connect(self, input: Input, output: Output):
-    input.outputs.append(output)
-    self.nodes.append(output)
+  def connect(self, input: Input, output_name: str, node_type, clk=None):
+    visited = output_name in self.nodes.keys()
+    if not visited: self.nodes[output_name] = node_type(name=output_name)
+    input.outputs.append(self.nodes[output_name])
+    if node_type is Block: self.nodes[output_name].clocked = clk
+    return visited
 
   def add_input(self, input: Input):
     self.inputs.append(input)
-    self.nodes.append(input)
+    self.nodes[input.name] = input
 
   def draw_schematic():
     pass
@@ -133,6 +136,7 @@ def tokenize_line(line):
 
 
 def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
+  node_visited = {}
   if not isinstance(node, Block):
     move_down = True
     i = 0
@@ -150,21 +154,21 @@ def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
           if char == ".": reading_chars = True
           elif reading_chars and char != "(": port_name += char
           elif reading_chars: break
-        if port_name in submod_inputs: schematic.connect(node, Block(name=tokens[0], clocked=clk))
+        if port_name in submod_inputs: node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk)
         move_down = True
         i = branch_i
-      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": schematic.connect(node, Wire(name=tokens[1]))
+      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
       elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "assign":
-        if tokens[1] in get_leafs_of_keyword(submodule, "wire"): schematic.connect(node, Wire(name=tokens[1]))
-        elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): schematic.connect(node, Inout(name=tokens[1]))
-        elif tokens[1] in get_leafs_of_keyword(submodule, "output"): schematic.connect(node, Output(name=tokens[1]))
+        if tokens[1] in get_leafs_of_keyword(submodule, "wire"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
+        elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Inout)
+        elif tokens[1] in get_leafs_of_keyword(submodule, "output"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Output)
       if move_down: i += 1
       else: i -= 1
   else:
     pass
   
   for dest in node.outputs:
-    print(node.name, dest)
+    print(node.name, dest, node_visited[dest.name])
 
 
 def generate_schematic(module_name):
