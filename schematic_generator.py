@@ -146,7 +146,7 @@ def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
         move_down = False
         branch_i = i
       if not move_down and "." not in tokens[0] and "(" not in tokens[0]:
-        submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input")
+        submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input") + get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "inout")
         clk = "clk" in submod_inputs
         port_name = ""
         reading_chars = False
@@ -164,8 +164,9 @@ def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
         elif tokens[1] in get_leafs_of_keyword(submodule, "output"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Output)
       if move_down: i += 1
       else: i -= 1
-  else:
-    pass
+  else: # Block case
+    for block_output in (get_leafs_of_keyword(get_submodule(node.name, all_lines), "output") + get_leafs_of_keyword(get_submodule(node.name, all_lines), "inout")):
+      pass
   
   for dest in node.outputs:
     print(node.name, dest, node_visited[dest.name])
