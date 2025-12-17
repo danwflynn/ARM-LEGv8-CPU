@@ -32,6 +32,7 @@ class Schematic:
     self.name: str = name
     self.inputs: List[Input] = []
     self.nodes: Dict[str, Node] = {}
+    self.node_visited: Dict[str, bool] = {}
   
   def connect(self, input: Input, output_name: str, node_type, clk=None):
     visited = output_name in self.nodes.keys()
@@ -107,7 +108,9 @@ def get_submodule(module_name, lines):
 def get_leafs_of_keyword(submodule, keyword):
   input_names = []
   input = ""
-  for line in submodule:
+  for raw_line in submodule:
+    line = raw_line
+    if keyword != "reg": line = raw_line.replace(" reg ", " ").replace(" reg[", "[")
     if line.startswith(keyword):
       outside_brackets = True
       for char in line[len(keyword):]:
@@ -126,7 +129,7 @@ def tokenize_line(line):
   current_token = ""
   for char in line:
     if current_token == "" and char == " ": continue
-    elif char != " " and char != "," and char != ":" and char != "?" and char != ";" and char != "&" and char != "|" and char != "+" and char != "-" and char != "*" and char != "=":
+    elif char != " " and char != "," and char != ":" and char != "?" and char != ";" and char != "&" and char != "|" and char != "+" and char != "-" and char != "*" and char != "=" and char != ".":
       current_token += char
     else:
       if current_token != "": tokens.append(current_token)
@@ -136,7 +139,6 @@ def tokenize_line(line):
 
 
 def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
-  node_visited = {}
   if not isinstance(node, Block):
     move_down = True
     i = 0
@@ -154,22 +156,35 @@ def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
           if char == ".": reading_chars = True
           elif reading_chars and char != "(": port_name += char
           elif reading_chars: break
-        if port_name in submod_inputs: node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk)
+        if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk)
         move_down = True
         i = branch_i
-      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
+      elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": schematic.node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
       elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "assign":
-        if tokens[1] in get_leafs_of_keyword(submodule, "wire"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
-        elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Inout)
-        elif tokens[1] in get_leafs_of_keyword(submodule, "output"): node_visited[tokens[1]] = schematic.connect(node, tokens[1], Output)
+        if tokens[1] in get_leafs_of_keyword(submodule, "wire"): schematic.node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
+        elif tokens[1] in get_leafs_of_keyword(submodule, "inout"): schematic.node_visited[tokens[1]] = schematic.connect(node, tokens[1], Inout)
+        elif tokens[1] in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[tokens[1]] = schematic.connect(node, tokens[1], Output)
       if move_down: i += 1
       else: i -= 1
   else: # Block case
     for block_output in (get_leafs_of_keyword(get_submodule(node.name, all_lines), "output") + get_leafs_of_keyword(get_submodule(node.name, all_lines), "inout")):
-      pass
+      search_for_output = False
+      for line in submodule:
+        if len(tokenize_line(line)) > 0 and tokenize_line(line)[0] == node.name: search_for_output = True
+        if search_for_output and "." + block_output in line:
+          for token in tokenize_line(line):
+            if token.startswith(block_output + "("):
+              output_name = ""
+              for char in token[len(block_output)+1:]:
+                if char == ")": break
+                output_name += char
+              if output_name in get_leafs_of_keyword(submodule, "wire"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Wire)
+              elif output_name in get_leafs_of_keyword(submodule, "inout"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Inout)
+              elif output_name in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Output)
   
   for dest in node.outputs:
-    print(node.name, dest, node_visited[dest.name])
+    print(node.name, dest, schematic.node_visited[dest.name])
+    if isinstance(dest, Block) and not schematic.node_visited[dest.name]: bfs_from_node(all_lines, submodule, dest, schematic)
 
 
 def generate_schematic(module_name):
