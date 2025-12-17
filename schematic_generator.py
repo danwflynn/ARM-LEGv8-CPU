@@ -138,7 +138,7 @@ def tokenize_line(line):
   return tokens
 
 
-def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
+def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
   if not isinstance(node, Block):
     move_down = True
     i = 0
@@ -184,7 +184,7 @@ def bfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
   
   for dest in node.outputs:
     print(node.name, dest, schematic.node_visited[dest.name])
-    if isinstance(dest, Block) and not schematic.node_visited[dest.name]: bfs_from_node(all_lines, submodule, dest, schematic)
+    if isinstance(dest, Block) and not schematic.node_visited[dest.name]: dfs_from_node(all_lines, submodule, dest, schematic)
 
 
 def generate_schematic(module_name):
@@ -213,7 +213,7 @@ def generate_schematic(module_name):
   for leaf in get_leafs_of_keyword(top_module, "input"): schematic.add_input(Input(name=leaf))
   for leaf in get_leafs_of_keyword(top_module, "inout"): schematic.add_input(Inout(name=leaf))
   # search from all inputs
-  for input in schematic.inputs: bfs_from_node(all_lines, top_module, input, schematic)
+  for input in schematic.inputs: dfs_from_node(all_lines, top_module, input, schematic)
 
 
 if __name__ == '__main__':
