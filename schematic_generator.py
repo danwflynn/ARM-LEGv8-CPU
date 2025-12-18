@@ -4,6 +4,16 @@ from typing import List, Dict
 
 
 @dataclass
+class Gate:
+  name: str
+
+@dataclass
+class TSB(Gate):
+  input: "Input"
+  enable: "Input"
+  output: "Output"
+
+@dataclass
 class Node:
   name: str
 
@@ -13,7 +23,7 @@ class Input(Node):
 
 @dataclass
 class Output(Node):
-  pass
+  gate: Gate = None
 
 @dataclass
 class Inout(Input, Output):
@@ -34,7 +44,7 @@ class Schematic:
     self.nodes: Dict[str, Node] = {}
     self.node_visited: Dict[str, bool] = {}
   
-  def connect(self, input: Input, output_name: str, node_type, clk=None):
+  def connect(self, input: Input, output_name: str, node_type, clk=None, line=None):
     visited = output_name in self.nodes.keys()
     if not visited: self.nodes[output_name] = node_type(name=output_name)
     input.outputs.append(self.nodes[output_name])
@@ -156,7 +166,7 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
           if char == ".": reading_chars = True
           elif reading_chars and char != "(": port_name += char
           elif reading_chars: break
-        if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk)
+        if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk=clk)
         move_down = True
         i = branch_i
       elif node.name in tokens[3:] and tokens[2] == "=" and tokens[0] == "wire": schematic.node_visited[tokens[1]] = schematic.connect(node, tokens[1], Wire)
