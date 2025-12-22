@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Union
 
 
 @dataclass
@@ -8,10 +8,16 @@ class Gate:
   name: str
 
 @dataclass
-class TSB(Gate):
-  input: "Input"
-  enable: "Input"
-  output: "Output"
+class SingleInputGate(Gate):
+  input: Union["Input", Gate]
+
+@dataclass
+class MultiInputGate(Gate):
+  inputs: List[Union["Input", Gate]]
+
+@dataclass
+class TSB(SingleInputGate):
+  enable: Union["Input", Gate]
 
 @dataclass
 class Node:
@@ -23,7 +29,7 @@ class Input(Node):
 
 @dataclass
 class Output(Node):
-  gates: Dict[str | Gate, Gate] = field(default_factory=dict)
+  gate: Gate = None
 
 @dataclass
 class Inout(Input, Output):
@@ -36,6 +42,7 @@ class Wire(Input, Output):
 @dataclass
 class Block(Inout):
   clocked: bool = False
+  input_nums: List[str] = field(default_factory=list)
 
 
 def tokenize_line(line):
@@ -59,18 +66,30 @@ class Schematic:
     self.nodes: Dict[str, Node] = {}
     self.node_visited: Dict[str, bool] = {}
   
+  def build_gate(self, raw_tokens: List[str]):
+    tokens = raw_tokens
+    while tokens[0].startswith('(') and tokens[-1].endswith(')'):
+      tokens[0] = tokens[0][1:]
+      tokens[-1] = tokens[-1][:-1]
+    groups = []
+    group_element = ""
+    parenthesis_level = 0
+    for idx, raw_token in enumerate(tokens):
+      token = raw_token
+      if token.count('(') == token.count(')'): token = raw_token.replace('(', "").replace(')', "")
+      group_element += f"{token}"
+      parenthesis_level += (token.count('(') - token.count(')'))
+      if parenthesis_level == 0:
+        groups.append(group_element)
+        group_element = ""
+      elif token != tokens[idx+1] or len(token) != 1: group_element += " "
+  
   def connect(self, input: Input, output_name: str, node_type, clk=None, line=None):
     visited = output_name in self.nodes.keys()
     if not visited: self.nodes[output_name] = node_type(name=output_name)
     input.outputs.append(self.nodes[output_name])
     if node_type is Block: self.nodes[output_name].clocked = clk
-
-    if line is not None:
-      tokens = tokenize_line(line)
-      parenthesis_layer = 0
-      current_gate_input = ""
-      for ind, token in enumerate(tokens[3:]):
-        pass
+    if line is not None: self.nodes[output_name].gate = self.build_gate(tokenize_line(line)[3:-1])
     return visited
 
   def add_input(self, input: Input):
