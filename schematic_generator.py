@@ -9,15 +9,15 @@ class Gate:
 
 @dataclass
 class SingleInputGate(Gate):
-  input: Union["Input", Gate]
+  input: Union[str, Gate]
 
 @dataclass
 class MultiInputGate(Gate):
-  inputs: List[Union["Input", Gate]]
+  inputs: List[Union[str, Gate]]
 
 @dataclass
 class TSB(SingleInputGate):
-  enable: Union["Input", Gate]
+  enable: Union[str, Gate]
 
 @dataclass
 class Node:
@@ -71,6 +71,7 @@ class Schematic:
     while tokens[0].startswith('(') and tokens[-1].endswith(')'):
       tokens[0] = tokens[0][1:]
       tokens[-1] = tokens[-1][:-1]
+      tokens = [item for item in tokens if item]
     groups = []
     group_element = ""
     parenthesis_level = 0
@@ -82,7 +83,22 @@ class Schematic:
       if parenthesis_level == 0:
         groups.append(group_element)
         group_element = ""
-      elif token != tokens[idx+1] or len(token) != 1: group_element += " "
+      elif (token != tokens[idx+1] or len(token) != 1) and not token.endswith('('): group_element += " "
+    
+    return_gate = None
+    for idx, ele in enumerate(groups):
+      if len(ele) == 1 and ele == groups[idx-1]: groups.pop(idx)
+    gate_chars = set([ele for ele in groups if len(ele) == 1])
+    #TSB case
+    if groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
+      input_field = None
+      if '(' not in groups[0] and ')' not in groups[0]:
+        input_field = groups[0]
+      enable_field = None
+      return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
+    elif len(gate_chars) > 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations.")
+    else:
+      pass
   
   def connect(self, input: Input, output_name: str, node_type, clk=None, line=None):
     visited = output_name in self.nodes.keys()
