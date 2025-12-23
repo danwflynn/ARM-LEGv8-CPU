@@ -59,6 +59,43 @@ def tokenize_line(line):
   return tokens
 
 
+def build_gate(raw_tokens: List[str]):
+  tokens = raw_tokens
+  while tokens[0].startswith('(') and tokens[-1].endswith(')'):
+    tokens[0] = tokens[0][1:]
+    tokens[-1] = tokens[-1][:-1]
+    tokens = [item for item in tokens if item]
+  groups = []
+  group_element = ""
+  parenthesis_level = 0
+  for idx, raw_token in enumerate(tokens):
+    token = raw_token
+    if token.count('(') == token.count(')'): token = raw_token.replace('(', "").replace(')', "")
+    group_element += f"{token}"
+    parenthesis_level += (token.count('(') - token.count(')'))
+    if parenthesis_level == 0:
+      groups.append(group_element)
+      group_element = ""
+    elif (token != tokens[idx+1] or len(token) != 1) and not token.endswith('('): group_element += " "
+  
+  return_gate = None
+  for idx, ele in enumerate(groups):
+    if len(ele) == 1 and ele == groups[idx-1]: groups.pop(idx)
+  gate_chars = set([ele for ele in groups if len(ele) == 1])
+  #TSB case
+  if groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
+    input_field = None
+    if '(' not in groups[0] and ')' not in groups[0]: input_field = groups[0]
+    else: input_field = build_gate(tokenize_line(groups[0]))
+    enable_field = None
+    if '(' not in groups[2] and ')' not in groups[2]: enable_field = groups[2]
+    else: enable_field = build_gate(tokenize_line(groups[2]))
+    return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
+  elif len(gate_chars) > 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations.")
+  else:
+    pass
+
+
 class Schematic:
   def __init__(self, name: str):
     self.name: str = name
@@ -66,48 +103,12 @@ class Schematic:
     self.nodes: Dict[str, Node] = {}
     self.node_visited: Dict[str, bool] = {}
   
-  def build_gate(self, raw_tokens: List[str]):
-    tokens = raw_tokens
-    while tokens[0].startswith('(') and tokens[-1].endswith(')'):
-      tokens[0] = tokens[0][1:]
-      tokens[-1] = tokens[-1][:-1]
-      tokens = [item for item in tokens if item]
-    groups = []
-    group_element = ""
-    parenthesis_level = 0
-    for idx, raw_token in enumerate(tokens):
-      token = raw_token
-      if token.count('(') == token.count(')'): token = raw_token.replace('(', "").replace(')', "")
-      group_element += f"{token}"
-      parenthesis_level += (token.count('(') - token.count(')'))
-      if parenthesis_level == 0:
-        groups.append(group_element)
-        group_element = ""
-      elif (token != tokens[idx+1] or len(token) != 1) and not token.endswith('('): group_element += " "
-    
-    return_gate = None
-    for idx, ele in enumerate(groups):
-      if len(ele) == 1 and ele == groups[idx-1]: groups.pop(idx)
-    gate_chars = set([ele for ele in groups if len(ele) == 1])
-    #TSB case
-    if groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
-      input_field = None
-      if '(' not in groups[0] and ')' not in groups[0]: input_field = groups[0]
-      else: input_field = self.build_gate(tokenize_line(groups[0]))
-      enable_field = None
-      if '(' not in groups[2] and ')' not in groups[2]: enable_field = groups[2]
-      else: enable_field = self.build_gate(tokenize_line(groups[2]))
-      return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
-    elif len(gate_chars) > 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations.")
-    else:
-      pass
-  
   def connect(self, input: Input, output_name: str, node_type, clk=None, line=None):
     visited = output_name in self.nodes.keys()
     if not visited: self.nodes[output_name] = node_type(name=output_name)
     input.outputs.append(self.nodes[output_name])
     if node_type is Block: self.nodes[output_name].clocked = clk
-    if line is not None: self.nodes[output_name].gate = self.build_gate(tokenize_line(line)[3:-1])
+    if line is not None and len(tokenize_line(line)) > 6: self.nodes[output_name].gate = build_gate(tokenize_line(line)[3:-1])
     return visited
 
   def add_input(self, input: Input):
