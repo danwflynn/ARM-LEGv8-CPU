@@ -92,9 +92,11 @@ class Schematic:
     #TSB case
     if groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
       input_field = None
-      if '(' not in groups[0] and ')' not in groups[0]:
-        input_field = groups[0]
+      if '(' not in groups[0] and ')' not in groups[0]: input_field = groups[0]
+      else: input_field = self.build_gate(tokenize_line(groups[0]))
       enable_field = None
+      if '(' not in groups[2] and ')' not in groups[2]: enable_field = groups[2]
+      else: enable_field = self.build_gate(tokenize_line(groups[2]))
       return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
     elif len(gate_chars) > 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations.")
     else:
