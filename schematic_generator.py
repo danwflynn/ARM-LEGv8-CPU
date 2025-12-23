@@ -13,7 +13,7 @@ class SingleInputGate(Gate):
 
 @dataclass
 class MultiInputGate(Gate):
-  inputs: List[Union[str, Gate]]
+  inputs: List[Union[str, Gate]] = field(default_factory=list)
 
 @dataclass
 class TSB(SingleInputGate):
@@ -83,7 +83,7 @@ def build_gate(raw_tokens: List[str]):
     if len(ele) == 1 and ele == groups[idx-1]: groups.pop(idx)
   gate_chars = set([ele for ele in groups if len(ele) == 1])
   #TSB case
-  if groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
+  if len(groups) > 4 and groups[1] == '?' and groups[3] == ':' and '\'' in groups[4] and 'z' in groups[4].lower() and groups[4][0].isdigit():
     input_field = None
     if '(' not in groups[0] and ')' not in groups[0]: input_field = groups[0]
     else: input_field = build_gate(tokenize_line(groups[0]))
@@ -91,9 +91,11 @@ def build_gate(raw_tokens: List[str]):
     if '(' not in groups[2] and ')' not in groups[2]: enable_field = groups[2]
     else: enable_field = build_gate(tokenize_line(groups[2]))
     return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
-  elif len(gate_chars) > 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations.")
+  elif len(gate_chars) != 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations. This error could also hit if there is no logic gate operator.")
   else:
-    pass
+    return_gate = MultiInputGate(name=gate_chars[0])
+    for ele in [group for group in groups if group != gate_chars[0]]:
+      pass
 
 
 class Schematic:
@@ -108,7 +110,7 @@ class Schematic:
     if not visited: self.nodes[output_name] = node_type(name=output_name)
     input.outputs.append(self.nodes[output_name])
     if node_type is Block: self.nodes[output_name].clocked = clk
-    if line is not None and len(tokenize_line(line)) > 6: self.nodes[output_name].gate = build_gate(tokenize_line(line)[3:-1])
+    if line is not None and len(tokenize_line(line)) > 5: self.nodes[output_name].gate = build_gate(tokenize_line(line)[3:-1])
     return visited
 
   def add_input(self, input: Input):
