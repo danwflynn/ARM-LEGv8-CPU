@@ -60,7 +60,11 @@ def tokenize_line(line):
 
 
 def build_gate(raw_tokens: List[str]):
+  not_the_gate = False
   tokens = raw_tokens
+  if tokens[0].startswith('~(') and tokens[-1].endswith(')'):
+    not_the_gate = True
+    tokens[0] = tokens[0][1:]
   while tokens[0].startswith('(') and tokens[-1].endswith(')'):
     tokens[0] = tokens[0][1:]
     tokens[-1] = tokens[-1][:-1]
@@ -94,8 +98,17 @@ def build_gate(raw_tokens: List[str]):
   elif len(gate_chars) != 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations. This error could also hit if there is no logic gate operator.")
   else:
     return_gate = MultiInputGate(name=gate_chars[0])
-    for ele in [group for group in groups if group != gate_chars[0]]:
-      pass
+    for group in groups:
+      if group == gate_chars[0]:
+        continue
+      if '(' in group and ')' in group: return_gate.inputs.append(build_gate(group))
+      else:
+        appending_input = group
+        if group[0] == '~': appending_input = SingleInputGate(name='~', input=group[1:])
+        return_gate.inputs.append(appending_input)
+  
+  if not_the_gate: return SingleInputGate(name='~', input=return_gate)
+  else: return return_gate
 
 
 class Schematic:
