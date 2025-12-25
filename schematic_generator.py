@@ -56,19 +56,21 @@ def tokenize_line(line):
       if current_token != "": tokens.append(current_token)
       current_token = ""
       if char != " ": tokens.append(char)
+  if current_token != "": tokens.append(current_token)
   return tokens
 
 
 def build_gate(raw_tokens: List[str]):
   not_the_gate = False
-  tokens = raw_tokens
-  if tokens[0].startswith('~(') and tokens[-1].endswith(')'):
-    not_the_gate = True
-    tokens[0] = tokens[0][1:]
-  while tokens[0].startswith('(') and tokens[-1].endswith(')'):
-    tokens[0] = tokens[0][1:]
-    tokens[-1] = tokens[-1][:-1]
-    tokens = [item for item in tokens if item]
+  tokens = [t.strip() for t in raw_tokens]
+  while (tokens[0].startswith('(') and tokens[-1].endswith(')')) or (tokens[0].startswith('~(') and tokens[-1].endswith(')')):
+    if tokens[0].startswith('(') and tokens[-1].endswith(')'):
+      tokens[0] = tokens[0][1:]
+      tokens[-1] = tokens[-1][:-1]
+      tokens = [item for item in tokens if item]
+    else:
+      not_the_gate = True
+      tokens[0] = tokens[0][1:]
   groups = []
   group_element = ""
   parenthesis_level = 0
@@ -80,7 +82,7 @@ def build_gate(raw_tokens: List[str]):
     if parenthesis_level == 0:
       groups.append(group_element)
       group_element = ""
-    elif (token != tokens[idx+1] or len(token) != 1) and not token.endswith('('): group_element += " "
+    elif idx < len(tokens) - 1 and (token != tokens[idx+1] or len(token) != 1) and not token.endswith('('): group_element += " "
   
   return_gate = None
   for idx, ele in enumerate(groups):
@@ -95,13 +97,14 @@ def build_gate(raw_tokens: List[str]):
     if '(' not in groups[2] and ')' not in groups[2]: enable_field = groups[2]
     else: enable_field = build_gate(tokenize_line(groups[2]))
     return_gate = TSB(name="Tri-State Buffer", input=input_field, enable=enable_field)
-  elif len(gate_chars) != 1: raise ValueError("I was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations. This error could also hit if there is no logic gate operator.")
+  elif len(gate_chars) != 1: raise ValueError(f"Groups: {groups}\nRaw tokens: {raw_tokens}\nTokens: {tokens}\nNot: {not_the_gate}\nI was too lazy to implement operator precedence. Please use parenthesis to indicate order of operations. This error could also hit if there is no logic gate operator.")
   else:
-    return_gate = MultiInputGate(name=gate_chars[0])
+    return_gate = MultiInputGate(name=next(iter(gate_chars)))
     for group in groups:
-      if group == gate_chars[0]:
+      if group == next(iter(gate_chars)):
         continue
-      if '(' in group and ')' in group: return_gate.inputs.append(build_gate(group))
+      if '(' in group and ')' in group:
+        return_gate.inputs.append(build_gate(tokenize_line(group)))
       else:
         appending_input = group
         if group[0] == '~': appending_input = SingleInputGate(name='~', input=group[1:])
@@ -264,8 +267,7 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
               elif output_name in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Output)
   
   for dest in node.outputs:
-    print(node.name, dest, schematic.node_visited[dest.name])
-    if isinstance(dest, Block) and not schematic.node_visited[dest.name]: dfs_from_node(all_lines, submodule, dest, schematic)
+    if isinstance(dest, Input) and not schematic.node_visited[dest.name]: dfs_from_node(all_lines, submodule, dest, schematic)
 
 
 def generate_schematic(module_name):
@@ -295,7 +297,8 @@ def generate_schematic(module_name):
   for leaf in get_leafs_of_keyword(top_module, "inout"): schematic.add_input(Inout(name=leaf))
   # search from all inputs
   for input in schematic.inputs: dfs_from_node(all_lines, top_module, input, schematic)
-  print(tokenize_line(all_lines[45]))
+  for node in schematic.nodes.values():
+    print(node)
 
 
 if __name__ == '__main__':
