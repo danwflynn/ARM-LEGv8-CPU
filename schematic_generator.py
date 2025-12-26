@@ -235,11 +235,23 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
         submod_inputs = get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "input") + get_leafs_of_keyword(get_submodule(tokens[0], all_lines), "inout")
         clk = "clk" in submod_inputs
         port_name = ""
-        reading_chars = False
+        in_name = ""
+        reading_chars_port = False
+        reading_chars_in = False
         for char in submodule[branch_i]:
-          if char == ".": reading_chars = True
-          elif reading_chars and char != "(": port_name += char
-          elif reading_chars: break
+          if char == ".": reading_chars_port = True
+          elif reading_chars_port and char != "(": port_name += char
+          elif reading_chars_port:
+            reading_chars_port = False
+            reading_chars_in = True
+            continue
+          if reading_chars_in and char != ")": in_name += char
+          elif reading_chars_in:
+            if in_name == node.name: break
+            else:
+              port_name = ""
+              in_name = ""
+              reading_chars_in = False
         if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk=clk)
         move_down = True
         i = branch_i
@@ -298,7 +310,8 @@ def generate_schematic(module_name):
   # search from all inputs
   for input in schematic.inputs: dfs_from_node(all_lines, top_module, input, schematic)
   for node in schematic.nodes.values():
-    print(node)
+    if isinstance(node, Input): print(node.name, [o.name for o in node.outputs])
+    else: print(node.name)
 
 
 if __name__ == '__main__':
