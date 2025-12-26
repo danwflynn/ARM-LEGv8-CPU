@@ -267,7 +267,7 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
       search_for_output = False
       for line in submodule:
         if len(tokenize_line(line)) > 0 and tokenize_line(line)[0] == node.name: search_for_output = True
-        if search_for_output and "." + block_output in line:
+        if search_for_output and "." + block_output + "(" in line:
           for token in tokenize_line(line):
             if token.startswith(block_output + "("):
               output_name = ""
@@ -277,6 +277,7 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
               if output_name in get_leafs_of_keyword(submodule, "wire"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Wire)
               elif output_name in get_leafs_of_keyword(submodule, "inout"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Inout)
               elif output_name in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[output_name] = schematic.connect(node, output_name, Output)
+        if search_for_output and line.rstrip().endswith(");"): search_for_output = False
   
   for dest in node.outputs:
     if isinstance(dest, Input) and not schematic.node_visited[dest.name]: dfs_from_node(all_lines, submodule, dest, schematic)
