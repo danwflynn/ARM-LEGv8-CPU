@@ -44,6 +44,10 @@ class Block(Inout):
   clocked: bool = False
   input_nums: List[str] = field(default_factory=list)
 
+@dataclass
+class Reg(Wire):
+  pass
+
 
 def tokenize_line(line):
   tokens = []
@@ -260,6 +264,8 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
         if big_tokens[1] in get_leafs_of_keyword(submodule, "wire"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Wire, line=total_line)
         elif big_tokens[1] in get_leafs_of_keyword(submodule, "inout"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Inout, line=total_line)
         elif big_tokens[1] in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Output, line=total_line)
+      elif node.name in [t.replace("(", "").replace(")", "").replace("~", "") for t in big_tokens[3:]] and big_tokens[2] == "=" and big_tokens[1] == "<":
+        if big_tokens[0] in get_leafs_of_keyword(submodule, "reg"): schematic.node_visited[big_tokens[0]] = schematic.connect(node, big_tokens[0], Reg, line=total_line)
       if move_down: i += 1
       else: i -= 1
   else: # Block case
