@@ -25,18 +25,18 @@ class Node:
 
 @dataclass
 class Input(Node):
-  outputs: List["Output"] = field(default_factory=list)
+  outputs: List[Node] = field(default_factory=list)
 
 @dataclass
-class Output(Node):
+class Wire(Input):
   gate: Gate = None
 
 @dataclass
-class Inout(Input, Output):
+class Output(Wire):
   pass
 
 @dataclass
-class Wire(Input, Output):
+class Inout(Output):
   pass
 
 @dataclass
