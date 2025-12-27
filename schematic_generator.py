@@ -255,8 +255,8 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
         if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk=clk)
         move_down = True
         i = branch_i
-      elif node.name in big_tokens[3:] and big_tokens[2] == "=" and big_tokens[0] == "wire": schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Wire)
-      elif node.name in big_tokens[3:] and big_tokens[2] == "=" and big_tokens[0] == "assign":
+      elif node.name in [t.replace("(", "").replace(")", "").replace("~", "") for t in big_tokens[3:]] and big_tokens[2] == "=" and big_tokens[0] == "wire": schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Wire)
+      elif node.name in [t.replace("(", "").replace(")", "").replace("~", "") for t in big_tokens[3:]] and big_tokens[2] == "=" and big_tokens[0] == "assign":
         if big_tokens[1] in get_leafs_of_keyword(submodule, "wire"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Wire, line=total_line)
         elif big_tokens[1] in get_leafs_of_keyword(submodule, "inout"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Inout, line=total_line)
         elif big_tokens[1] in get_leafs_of_keyword(submodule, "output"): schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Output, line=total_line)
