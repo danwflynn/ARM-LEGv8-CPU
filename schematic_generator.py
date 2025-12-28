@@ -43,6 +43,7 @@ class Inout(Output):
 class Block(Inout):
   clocked: bool = False
   input_nums: List[str] = field(default_factory=list)
+  module_name: str = None
 
 @dataclass
 class Reg(Wire):
@@ -125,11 +126,13 @@ class Schematic:
     self.nodes: Dict[str, Node] = {}
     self.node_visited: Dict[str, bool] = {}
   
-  def connect(self, input: Input, output_name: str, node_type, clk=None, line=None):
+  def connect(self, input: Input, output_name: str, node_type, clk=None, line=None, module_name=None):
     visited = output_name in self.nodes.keys()
     if not visited: self.nodes[output_name] = node_type(name=output_name)
     input.outputs.append(self.nodes[output_name])
-    if node_type is Block: self.nodes[output_name].clocked = clk
+    if node_type is Block:
+      self.nodes[output_name].clocked = clk
+      self.nodes[output_name].module_name = module_name
     if line is not None and len(tokenize_line(line)) > 5: self.nodes[output_name].gate = build_gate(tokenize_line(line)[3:-1])
     return visited
 
@@ -256,7 +259,7 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
               port_name = ""
               in_name = ""
               reading_chars_in = False
-        if port_name in submod_inputs: schematic.node_visited[tokens[0]] = schematic.connect(node, tokens[0], Block, clk=clk)
+        if port_name in submod_inputs: schematic.node_visited[tokens[1].replace("(", "")] = schematic.connect(node, tokens[1].replace("(", ""), Block, clk=clk, module_name=tokens[0])
         move_down = True
         i = branch_i
       elif node.name in [t.replace("(", "").replace(")", "").replace("~", "") for t in big_tokens[3:]] and big_tokens[2] == "=" and big_tokens[0] == "wire": schematic.node_visited[big_tokens[1]] = schematic.connect(node, big_tokens[1], Wire)
@@ -269,10 +272,24 @@ def dfs_from_node(all_lines, submodule, node: Input, schematic: Schematic):
       if move_down: i += 1
       else: i -= 1
   else: # Block case
-    for block_output in (get_leafs_of_keyword(get_submodule(node.name, all_lines), "output") + get_leafs_of_keyword(get_submodule(node.name, all_lines), "inout")):
+    for block_output in (get_leafs_of_keyword(get_submodule(node.module_name, all_lines), "output") + get_leafs_of_keyword(get_submodule(node.module_name, all_lines), "inout")):
       search_for_output = False
       for line in submodule:
-        if len(tokenize_line(line)) > 0 and tokenize_line(line)[0] == node.name: search_for_output = True
+        if len(tokenize_line(line)) > 1 and tokenize_line(line)[1].replace("(", "") == node.name: search_for_output = True
+
+        if search_for_output:
+          search_for_num = False
+          num_in = ""
+          for idx, char in enumerate(line.replace(" ", "")):
+            if char == '(' and line.replace(" ", "")[idx+1].isdigit():
+              search_for_num = True
+              continue
+            if search_for_num and char != ')': num_in += char
+            elif search_for_num:
+              search_for_num = False
+              node.input_nums.append(num_in)
+              num_in = ""
+
         if search_for_output and "." + block_output + "(" in line:
           for token in tokenize_line(line):
             if token.startswith(block_output + "("):
@@ -317,8 +334,10 @@ def generate_schematic(module_name):
   # search from all inputs
   for input in schematic.inputs: dfs_from_node(all_lines, top_module, input, schematic)
   for node in schematic.nodes.values():
-    if isinstance(node, Input): print(node.name, [o.name for o in node.outputs])
+    if isinstance(node, Block): print(node.module_name, node.name, [o.name for o in node.outputs], node.input_nums)
+    elif isinstance(node, Input): print(node.name, [o.name for o in node.outputs])
     else: print(node.name)
+  # print(tokenize_line(top_module[8]))
 
 
 if __name__ == '__main__':
