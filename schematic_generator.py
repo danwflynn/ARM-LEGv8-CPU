@@ -335,9 +335,8 @@ def generate_schematic(module_name):
   for input in schematic.inputs: dfs_from_node(all_lines, top_module, input, schematic)
   for node in schematic.nodes.values():
     if isinstance(node, Block): print(node.module_name, node.name, [o.name for o in node.outputs], node.input_nums)
-    elif isinstance(node, Input): print(node.name, [o.name for o in node.outputs])
-    else: print(node.name)
-  # print(tokenize_line(top_module[8]))
+    elif isinstance(node, Wire): print(node.name, [o.name for o in node.outputs], node.gate)
+    else: print(node.name, [o.name for o in node.outputs])
 
 
 if __name__ == '__main__':
