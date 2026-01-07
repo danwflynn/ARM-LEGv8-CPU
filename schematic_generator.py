@@ -1,6 +1,7 @@
 import sys
 from dataclasses import dataclass, field
 from typing import List, Dict, Union
+from graphviz import Digraph
 
 
 @dataclass
@@ -140,8 +141,13 @@ class Schematic:
     self.inputs.append(input)
     self.nodes[input.name] = input
 
-  def draw_schematic():
-    pass
+  def draw_schematic(self):
+    dot = Digraph(graph_attr={'rankdir': 'LR'}, node_attr={'shape': 'box'})
+    
+    for n in self.nodes.values():
+      if isinstance(n, Block): dot.node(n.name, n.module_name)
+    
+    dot.render(self.name, format='png', cleanup=True)
 
 
 def strip_verilog(lines):
@@ -337,6 +343,8 @@ def generate_schematic(module_name):
     if isinstance(node, Block): print(node.module_name, node.name, [o.name for o in node.outputs], node.input_nums)
     elif isinstance(node, Wire): print(node.name, [o.name for o in node.outputs], node.gate)
     else: print(node.name, [o.name for o in node.outputs])
+  
+  schematic.draw_schematic()
 
 
 if __name__ == '__main__':
