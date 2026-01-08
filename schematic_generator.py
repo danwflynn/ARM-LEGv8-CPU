@@ -119,6 +119,19 @@ def build_gate(raw_tokens: List[str]):
   if not_the_gate: return SingleInputGate(name='~', input=return_gate)
   else: return return_gate
 
+def input_to_block(dot: Digraph, start_name: str, input: Input):
+  if len(input.outputs) > 1:
+    dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
+    dot.edge(start_name, f'junctionof/{input.name}', label=input.name, arrowhead='none')
+    for output in input.outputs:
+      if isinstance(output, Block): dot.edge(f'junctionof/{input.name}', output.name)
+      else: input_to_block(dot, f'junctionof/{input.name}', output)
+  elif len(input.outputs) == 1:
+    if isinstance(input.outputs[0], Block): dot.edge(start_name, input.outputs[0].name, label=input.name)
+    else:
+      dot.node(f'connectof/{input.name}', shape='point', width='0.01')
+      input_to_block(dot, f'connectof/{input.name}', input.outputs[0])
+
 
 class Schematic:
   def __init__(self, name: str):
@@ -143,9 +156,23 @@ class Schematic:
 
   def draw_schematic(self):
     dot = Digraph(graph_attr={'rankdir': 'LR'}, node_attr={'shape': 'box'})
-    
-    for n in self.nodes.values():
-      if isinstance(n, Block): dot.node(n.name, n.module_name)
+
+    blocks = [n for n in self.nodes.values() if isinstance(n, Block)]
+    for block in blocks: dot.node(block.name, block.module_name)
+    for input in self.inputs:
+      dot.node(f'inputof/{input.name}', style='invis')
+      if len(input.outputs) > 1:
+        dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
+        dot.edge(f'inputof/{input.name}', f'junctionof/{input.name}', label=input.name, arrowhead='none')
+        for output in input.outputs:
+          if isinstance(output, Block): dot.edge(f'junctionof/{input.name}', output.name)
+          else: input_to_block(dot, f'junctionof/{input.name}', output)
+      elif len(input.outputs) == 1:
+        if isinstance(input.outputs[0], Block): dot.edge(f'inputof/{input.name}', input.outputs[0].name, label=input.name)
+        else: input_to_block(dot, f'inputof/{input.name}', input.outputs[0])
+    for block in blocks:
+      for output in block.outputs:
+        input_to_block(dot, block.name, output)
     
     dot.render(self.name, format='png', cleanup=True)
 
