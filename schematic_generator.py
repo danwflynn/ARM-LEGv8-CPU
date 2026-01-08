@@ -130,6 +130,7 @@ def input_to_block(dot: Digraph, start_name: str, input: Input):
     if isinstance(input.outputs[0], Block): dot.edge(start_name, input.outputs[0].name, label=input.name)
     else:
       dot.node(f'connectof/{input.name}', shape='point', width='0.01')
+      dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
       input_to_block(dot, f'connectof/{input.name}', input.outputs[0])
 
 
