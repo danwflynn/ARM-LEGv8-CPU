@@ -172,7 +172,10 @@ class Schematic:
           else: input_to_block(dot, f'junctionof/{input.name}', output)
       elif len(input.outputs) == 1:
         if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg): dot.edge(f'inputof/{input.name}', input.outputs[0].name, label=input.name)
-        else: input_to_block(dot, f'inputof/{input.name}', input.outputs[0])
+        else:
+          dot.node(f'connectof/{input.name}', shape='point', width='0.01')
+          dot.edge(f'inputof/{input.name}', f'connectof/{input.name}', label=input.name, arrowhead='none')
+          input_to_block(dot, f'connectof/{input.name}', input.outputs[0])
     for block in blocks + regs:
       for output in block.outputs:
         input_to_block(dot, block.name, output)
