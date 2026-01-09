@@ -120,17 +120,27 @@ def build_gate(raw_tokens: List[str]):
   else: return return_gate
 
 def input_to_block(dot: Digraph, start_name: str, input: Input):
+  if type(input) == Output: dot.node(f'outputof/{input.name}', style='invis')
   if len(input.outputs) > 1:
     dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
     dot.edge(start_name, f'junctionof/{input.name}', label=input.name, arrowhead='none')
+    if type(input) == Output: dot.edge(f'junctionof/{input.name}', f'outputof/{input.name}', label=input.name)
     for output in input.outputs:
       if isinstance(output, Block) or isinstance(output, Reg): dot.edge(f'junctionof/{input.name}', output.name)
       else: input_to_block(dot, f'junctionof/{input.name}', output)
   elif len(input.outputs) == 1:
-    if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg): dot.edge(start_name, input.outputs[0].name, label=input.name)
+    if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg):
+      if type(input) == Output: 
+        dot.node(f'connectof/{input.name}', shape='point', width='0.01')
+        dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
+        dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+        dot.edge(f'connectof/{input.name}', input.outputs[0].name, label=input.name)
+      else:
+        dot.edge(start_name, input.outputs[0].name, label=input.name)
     else:
       dot.node(f'connectof/{input.name}', shape='point', width='0.01')
       dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
+      if type(input) == Output: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
       input_to_block(dot, f'connectof/{input.name}', input.outputs[0])
 
 
