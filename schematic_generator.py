@@ -124,10 +124,10 @@ def input_to_block(dot: Digraph, start_name: str, input: Input):
     dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
     dot.edge(start_name, f'junctionof/{input.name}', label=input.name, arrowhead='none')
     for output in input.outputs:
-      if isinstance(output, Block): dot.edge(f'junctionof/{input.name}', output.name)
+      if isinstance(output, Block) or isinstance(output, Reg): dot.edge(f'junctionof/{input.name}', output.name)
       else: input_to_block(dot, f'junctionof/{input.name}', output)
   elif len(input.outputs) == 1:
-    if isinstance(input.outputs[0], Block): dot.edge(start_name, input.outputs[0].name, label=input.name)
+    if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg): dot.edge(start_name, input.outputs[0].name, label=input.name)
     else:
       dot.node(f'connectof/{input.name}', shape='point', width='0.01')
       dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
@@ -159,19 +159,21 @@ class Schematic:
     dot = Digraph(graph_attr={'rankdir': 'LR'}, node_attr={'shape': 'box'})
 
     blocks = [n for n in self.nodes.values() if isinstance(n, Block)]
+    regs = [n for n in self.nodes.values() if isinstance(n, Reg)]
     for block in blocks: dot.node(block.name, block.module_name)
+    for reg in regs: dot.node(reg.name)
     for input in self.inputs:
       dot.node(f'inputof/{input.name}', style='invis')
       if len(input.outputs) > 1:
         dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
         dot.edge(f'inputof/{input.name}', f'junctionof/{input.name}', label=input.name, arrowhead='none')
         for output in input.outputs:
-          if isinstance(output, Block): dot.edge(f'junctionof/{input.name}', output.name)
+          if isinstance(output, Block) or isinstance(output, Reg): dot.edge(f'junctionof/{input.name}', output.name)
           else: input_to_block(dot, f'junctionof/{input.name}', output)
       elif len(input.outputs) == 1:
-        if isinstance(input.outputs[0], Block): dot.edge(f'inputof/{input.name}', input.outputs[0].name, label=input.name)
+        if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg): dot.edge(f'inputof/{input.name}', input.outputs[0].name, label=input.name)
         else: input_to_block(dot, f'inputof/{input.name}', input.outputs[0])
-    for block in blocks:
+    for block in blocks + regs:
       for output in block.outputs:
         input_to_block(dot, block.name, output)
     
