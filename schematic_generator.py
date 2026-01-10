@@ -127,6 +127,7 @@ class Schematic:
     self.nodes: Dict[str, Node] = {}
     self.node_visited: Dict[str, bool] = {}
     self.gate_nodes: Dict[str, List[str]] = {}
+    self.gate_names: List[str] = []
   
   def connect(self, input: Input, output_name: str, node_type, clk=None, line=None, module_name=None):
     visited = output_name in self.nodes.keys()
@@ -177,14 +178,20 @@ class Schematic:
 
   def gate_level_up(self, dot: Digraph, gate_name_below: str, current_level_content: Union[str, Gate], level: int, wire_name: str):
     if isinstance(current_level_content, Gate):
-      dot.node(f'gatelevel{level}/{wire_name}/{current_level_content.name}', current_level_content.name)
-      dot.edge(f'gatelevel{level}/{wire_name}/{current_level_content.name}', gate_name_below)
-      if type(current_level_content) == SingleInputGate: self.gate_level_up(dot, f'gatelevel{level}/{wire_name}/{current_level_content.name}', current_level_content.input, level+1, wire_name)
+      num = 0
+      gate_node_name = f'gatelevel{level}/{wire_name}/{current_level_content.name}/{num}'
+      while gate_node_name in self.gate_names:
+        num += 1
+        gate_node_name = f'gatelevel{level}/{wire_name}/{current_level_content.name}/{num}'
+      self.gate_names.append(gate_node_name)
+      dot.node(gate_node_name, current_level_content.name)
+      dot.edge(gate_node_name, gate_name_below)
+      if type(current_level_content) == SingleInputGate: self.gate_level_up(dot, gate_node_name, current_level_content.input, level+1, wire_name)
       elif type(current_level_content) == TSB:
-        self.gate_level_up(dot, f'gatelevel{level}/{wire_name}/{current_level_content.name}', current_level_content.input, level+1, wire_name)
-        self.gate_level_up(dot, f'gatelevel{level}/{wire_name}/{current_level_content.name}', current_level_content.enable, level+1, wire_name)
+        self.gate_level_up(dot, gate_node_name, current_level_content.input, level+1, wire_name)
+        self.gate_level_up(dot, gate_node_name, current_level_content.enable, level+1, wire_name)
       elif type(current_level_content) == MultiInputGate:
-        for gate_input in current_level_content.inputs: self.gate_level_up(dot, f'gatelevel{level}/{wire_name}/{current_level_content.name}', gate_input, level+1, wire_name)
+        for gate_input in current_level_content.inputs: self.gate_level_up(dot, gate_node_name, gate_input, level+1, wire_name)
     else:
       if current_level_content not in self.gate_nodes.keys(): self.gate_nodes[current_level_content] = [gate_name_below]
       else: self.gate_nodes[current_level_content].append(gate_name_below)
