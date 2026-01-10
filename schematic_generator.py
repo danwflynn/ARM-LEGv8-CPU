@@ -144,11 +144,12 @@ class Schematic:
     self.nodes[input.name] = input
   
   def input_to_block(self, dot: Digraph, start_name: str, input: Input):
-    if type(input) == Output: dot.node(f'outputof/{input.name}', style='invis')
+    if type(input) == Output or type(input) == Inout: dot.node(f'outputof/{input.name}', style='invis')
     if len(input.outputs) > 1:
       dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
       dot.edge(start_name, f'junctionof/{input.name}', label=input.name, arrowhead='none')
       if type(input) == Output: dot.edge(f'junctionof/{input.name}', f'outputof/{input.name}', label=input.name)
+      elif type(input) == Inout: dot.edge(f'junctionof/{input.name}', f'outputof/{input.name}', label=input.name, dir='both')
       for output in input.outputs:
         if isinstance(output, Block) or isinstance(output, Reg): dot.edge(f'junctionof/{input.name}', output.name)
         elif isinstance(output, Wire) and output.gate is not None:
@@ -156,17 +157,19 @@ class Schematic:
         else: self.input_to_block(dot, f'junctionof/{input.name}', output)
     elif len(input.outputs) == 1:
       if isinstance(input.outputs[0], Block) or isinstance(input.outputs[0], Reg):
-        if type(input) == Output: 
+        if type(input) == Output or type(input) == Inout:
           dot.node(f'connectof/{input.name}', shape='point', width='0.01')
           dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
-          dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+          if type(input) == Output: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+          elif type(input) == Inout: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name, dir='both')
           dot.edge(f'connectof/{input.name}', input.outputs[0].name, label=input.name)
         else: dot.edge(start_name, input.outputs[0].name, label=input.name)
       elif isinstance(input.outputs[0], Wire) and input.outputs[0].gate is not None:
-        if type(input) == Output: 
+        if type(input) == Output or type(input) == Inout:
           dot.node(f'connectof/{input.name}', shape='point', width='0.01')
           dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
-          dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+          if type(input) == Output: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+          elif type(input) == Inout: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name, dir='both')
           for gate_node in self.gate_nodes[input.name]: dot.edge(f'connectof/{input.name}', gate_node, label=input.name)
         else: 
           for gate_node in self.gate_nodes[input.name]: dot.edge(start_name, gate_node, label=input.name)
@@ -174,6 +177,7 @@ class Schematic:
         dot.node(f'connectof/{input.name}', shape='point', width='0.01')
         dot.edge(start_name, f'connectof/{input.name}', label=input.name, arrowhead='none')
         if type(input) == Output: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name)
+        elif type(input) == Inout: dot.edge(f'connectof/{input.name}', f'outputof/{input.name}', label=input.name, dir='both')
         self.input_to_block(dot, f'connectof/{input.name}', input.outputs[0])
 
   def gate_level_up(self, dot: Digraph, gate_name_below: str, current_level_content: Union[str, Gate], level: int, wire_name: str):
@@ -212,6 +216,7 @@ class Schematic:
         dot.edge(f'num/{block.name}/{idx}', block.name, label=num_str)
     for reg in regs: dot.node(reg.name)
     for wire in gated_wires:
+      if type(wire) == Output or type(wire) == Inout: dot.node(f'outputof/{wire.name}', style='invis')
       dot.node(f'gatelevel0/{wire.name}/{wire.gate.name}', wire.gate.name)
       if type(wire.gate) == SingleInputGate: self.gate_level_up(dot, f'gatelevel0/{wire.name}/{wire.gate.name}', wire.gate.input, 1, wire.name)
       elif type(wire.gate) == TSB:
@@ -222,20 +227,29 @@ class Schematic:
       if len(wire.outputs) > 1:
         dot.node(f'junctionof/{wire.name}', shape='point', width='0.01')
         dot.edge(f'gatelevel0/{wire.name}/{wire.gate.name}', f'junctionof/{wire.name}', label=wire.name, arrowhead='none')
+        if type(wire) == Output: dot.edge(f'junctionof/{wire.name}', f'outputof/{wire.name}', label=wire.name)
+        elif type(wire) == Inout: dot.edge(f'junctionof/{wire.name}', f'outputof/{wire.name}', label=wire.name, dir='both')
         for output in wire.outputs:
           if isinstance(output, Block) or isinstance(output, Reg): dot.edge(f'junctionof/{wire.name}', output.name)
           elif isinstance(output, Wire) and output.gate is not None:
             for gate_node in self.gate_nodes[wire.name]: dot.edge(f'junctionof/{wire.name}', gate_node)
           else: self.input_to_block(dot, f'junctionof/{wire.name}', output)
       elif len(wire.outputs) == 1:
-        if isinstance(wire.outputs[0], Block) or isinstance(wire.outputs[0], Reg): dot.edge(f'gatelevel0/{wire.name}/{wire.gate.name}', wire.outputs[0].name, label=wire.name)
+        start_point = f'gatelevel0/{wire.name}/{wire.gate.name}'
+        if type(wire) == Output or type(wire) == Inout:
+          dot.node(f'middle/{start_point}', shape='point', width='0.01')
+          dot.edge(start_point, f'middle/{start_point}', arrowhead='none')
+          if type(wire) == Output: dot.edge(f'middle/{start_point}', f'outputof/{wire.name}', label=wire.name)
+          elif type(wire) == Inout: dot.edge(f'middle/{start_point}', f'outputof/{wire.name}', label=wire.name, dir='both')
+          start_point = f'middle/{start_point}'
+        if isinstance(wire.outputs[0], Block) or isinstance(wire.outputs[0], Reg): dot.edge(start_point, wire.outputs[0].name, label=wire.name)
         elif isinstance(wire.outputs[0], Wire) and wire.outputs[0].gate is not None:
-          for gate_node in self.gate_nodes[wire.name]: dot.edge(f'gatelevel0/{wire.name}/{wire.gate.name}', gate_node)
+          for gate_node in self.gate_nodes[wire.name]: dot.edge(start_point, gate_node)
         else:
           dot.node(f'connectof/{wire.name}', shape='point', width='0.01')
-          dot.edge(f'gatelevel0/{wire.name}/{wire.gate.name}', f'connectof/{wire.name}', label=wire.name, arrowhead='none')
+          dot.edge(start_point, f'connectof/{wire.name}', label=wire.name, arrowhead='none')
           self.input_to_block(dot, f'connectof/{wire.name}', wire.outputs[0])
-    for input in self.inputs:
+    for input in [inp for inp in self.inputs if type(inp) == Input]:
       dot.node(f'inputof/{input.name}', style='invis')
       if len(input.outputs) > 1:
         dot.node(f'junctionof/{input.name}', shape='point', width='0.01')
