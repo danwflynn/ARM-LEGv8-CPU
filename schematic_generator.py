@@ -193,7 +193,10 @@ class Schematic:
       elif type(current_level_content) == MultiInputGate:
         for gate_input in current_level_content.inputs: self.gate_level_up(dot, gate_node_name, gate_input, level+1, wire_name)
     else:
-      if current_level_content not in self.gate_nodes.keys(): self.gate_nodes[current_level_content] = [gate_name_below]
+      if current_level_content[0].isdigit():
+        dot.node(f'num/{current_level_content}/{gate_name_below}', style='invis')
+        dot.edge(f'num/{current_level_content}/{gate_name_below}', gate_name_below, label=current_level_content)
+      elif current_level_content not in self.gate_nodes.keys(): self.gate_nodes[current_level_content] = [gate_name_below]
       else: self.gate_nodes[current_level_content].append(gate_name_below)
 
   def draw_schematic(self):
