@@ -202,7 +202,11 @@ class Schematic:
     blocks = [n for n in self.nodes.values() if isinstance(n, Block)]
     regs = [n for n in self.nodes.values() if isinstance(n, Reg)]
     gated_wires = [n for n in self.nodes.values() if isinstance(n, Wire) and not isinstance(n, Block) and not isinstance(n, Reg) and n.gate is not None]
-    for block in blocks: dot.node(block.name, block.module_name)
+    for block in blocks:
+      dot.node(block.name, block.module_name)
+      for idx, num_str in enumerate(block.input_nums):
+        dot.node(f'num/{block.name}/{idx}', style='invis')
+        dot.edge(f'num/{block.name}/{idx}', block.name, label=num_str)
     for reg in regs: dot.node(reg.name)
     for wire in gated_wires:
       dot.node(f'gatelevel0/{wire.name}/{wire.gate.name}', wire.gate.name)
