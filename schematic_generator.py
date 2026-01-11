@@ -209,8 +209,13 @@ class Schematic:
     blocks = [n for n in self.nodes.values() if isinstance(n, Block)]
     regs = [n for n in self.nodes.values() if isinstance(n, Reg)]
     gated_wires = [n for n in self.nodes.values() if isinstance(n, Wire) and not isinstance(n, Block) and not isinstance(n, Reg) and n.gate is not None]
+    if 'clk' in [i.name for i in self.inputs]:
+      dot.node('invisnodeforclock', style='invis')
+      dot.node('visiblenodeforclock', 'CLK', style='filled', fillcolor='lightblue')
+      dot.edge('invisnodeforclock', 'visiblenodeforclock', label='clock signal')
     for block in blocks:
-      dot.node(block.name, block.module_name)
+      if block.clocked: dot.node(block.name, block.module_name, style='filled', fillcolor='lightblue')
+      else: dot.node(block.name, block.module_name)
       for idx, num_str in enumerate(block.input_nums):
         dot.node(f'num/{block.name}/{idx}', style='invis')
         dot.edge(f'num/{block.name}/{idx}', block.name, label=num_str)
